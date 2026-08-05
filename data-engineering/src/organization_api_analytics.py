@@ -476,6 +476,57 @@ def fetch_top_rated_organizations(cursor):
         for row in rows
     ]
 
+def fetch_unrated_organizations(cursor):
+    query = f"""
+        SELECT
+            org_name,
+            org_type,
+            org_size,
+            city_name
+        FROM {SCHEMA_NAME}.organizations
+        WHERE org_rating IS NULL
+        ORDER BY org_name;
+    """
+
+    cursor.execute(query)
+    rows = cursor.fetchall()
+
+    return [
+        {
+            "organization_name": row["org_name"],
+            "organization_type": row["org_type"],
+            "organization_size": row["org_size"],
+            "city": row["city_name"]
+        }
+        for row in rows
+    ]
+
+def fetch_top_collaborator_organizations(cursor):
+    query = f"""
+        SELECT
+            org_name,
+            org_rating,
+            org_type,
+            org_size
+        FROM {SCHEMA_NAME}.organizations
+        WHERE is_collaborator = TRUE
+        ORDER BY org_rating DESC NULLS LAST, org_name
+        LIMIT 10;
+    """
+
+    cursor.execute(query)
+    rows = cursor.fetchall()
+
+    return [
+        {
+            "organization_name": row["org_name"],
+            "rating": row["org_rating"],
+            "organization_type": row["org_type"],
+            "organization_size": row["org_size"]
+        }
+        for row in rows
+    ]
+
 def lambda_handler(event, context):
     conn = None
     cursor = None
@@ -597,6 +648,20 @@ def lambda_handler(event, context):
         except Exception as error:
           print(f"Top rated organizations query failed: {error}")
           response_body["organization_performance"]["top_rated_organizations"] = []
+
+        try:
+          response_body["organization_performance"]["unrated_organizations"] = \
+          fetch_unrated_organizations(cursor)
+        except Exception as error:
+          print(f"Unrated organizations query failed: {error}")
+          response_body["organization_performance"]["unrated_organizations"] = []
+
+        try:
+          response_body["organization_performance"]["top_collaborator_organizations"] = \
+          fetch_top_collaborator_organizations(cursor)
+        except Exception as error:
+          print(f"Top collaborator organizations query failed: {error}")
+          response_body["organization_performance"]["top_collaborator_organizations"] = []
 
         return build_response(200, response_body)
 
