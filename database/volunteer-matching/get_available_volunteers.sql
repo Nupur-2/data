@@ -1,8 +1,15 @@
+-- =====================================================================
+-- get_available_volunteers
+-- Returns eligible volunteers for a given request (#289), matched by
+-- help category, filtered by proximity for In-person requests, and
+-- excluding volunteers already assigned to the request.
+-- =====================================================================
+
 DROP FUNCTION IF EXISTS get_available_volunteers(text, numeric);
 
 CREATE OR REPLACE FUNCTION get_available_volunteers(
     p_request_id text,
-    p_radius_km numeric DEFAULT 40   -- ~25 miles; no confirmed team value yet, flag in PR
+    p_radius_km numeric DEFAULT 40   -- TODO: confirm matching radius with team; ~25 miles for now
 )
 RETURNS TABLE (
     volunteer_id text,
@@ -36,8 +43,8 @@ BEGIN
     SELECT (rt.req_type ILIKE '%person%') INTO v_is_in_person
       FROM request_type rt WHERE rt.req_type_id = v_req_type_id;
 
-    -- req_loc is stored as "lat,lng" text for now (see PR notes — real
-    -- requests will need a geocoded location instead)
+    -- TODO: req_loc is currently free-text; this assumes "lat,lng" format.
+    -- Needs alignment with how requests actually populate this field.
     IF v_is_in_person AND v_req_loc IS NOT NULL AND v_req_loc LIKE '%,%' THEN
         v_req_lat := split_part(v_req_loc, ',', 1)::numeric;
         v_req_lng := split_part(v_req_loc, ',', 2)::numeric;
